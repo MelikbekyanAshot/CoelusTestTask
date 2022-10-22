@@ -1,5 +1,5 @@
 """Script contains tiling task solution."""
-from typing import Tuple, List
+from typing import Tuple, List, Union
 import itertools
 import warnings
 import numpy as np
@@ -15,22 +15,26 @@ class Solution:
     Attributes:
         model (cp_model.CpModel): model used for task solution.
         table_size (Tuple[int, int]): width and height of table.
-        rectangle_shapes (List[Tuple[int, int]]): """
+        rectangle_shapes (List[Tuple[int, int]]): shapes of given rectangles."""
 
-    def __init__(self, table_size: Tuple[int, int], rectangle_shapes: List[Tuple[int, int]]):
+    def __init__(self, table_size: Tuple[int, int],
+                 rectangle_shapes: List[Tuple[int, int]], p_shapes: List[Tuple[int, int]]):
         self.model = cp_model.CpModel()
         self.table_size = table_size
         self.rectangle_shapes = rectangle_shapes
+        self.p_shapes = p_shapes
 
     def solve(self):
         """Iterates through all possible rectangle rotations to find solution."""
         if not self.__check_area_compatibility():
+            print('There is not enough area')
             return False
-        all_rect_shape_combinations = [list(itertools.permutations(rectangle_size))
-                                       for rectangle_size in self.rectangle_shapes]
-        all_rect_shape_combinations = list(itertools.product(*all_rect_shape_combinations))
-        for rect_shape in all_rect_shape_combinations:
-            if self.__find_solution(rect_shape):
+        rect_shape_combinations = [list(itertools.permutations(rectangle_shape))
+                                   for rectangle_shape in self.rectangle_shapes]
+        rect_shape_combinations = list(itertools.product(*rect_shape_combinations))
+
+        for rect_shape in rect_shape_combinations:
+            if self.__find_solution(rect_shape, self.p_shapes):
                 return True
         return False
 
@@ -40,36 +44,53 @@ class Solution:
 
         Returns:
             bool: True if there is enough area for all figures, False otherwise."""
-        total_area = self.table_size[0] * self.table_size[1]
+        available_area = self.table_size[0] * self.table_size[1]
         rectangles_area = sum(width * height for width, height in self.rectangle_shapes)
-        return total_area >= rectangles_area
+        p_polyominoes_area = sum(
+            (width * height) - (width - 2) * (height - 1) for width, height in self.p_shapes)
+        return available_area >= rectangles_area + p_polyominoes_area
 
-    def __find_solution(self, rectangle_shapes) -> bool:
+    def __find_solution(self, rectangle_shapes: Tuple[Tuple[int, int]],
+                        p_polyomino_shapes: Tuple[Tuple[int, int]]) -> bool:
         """Tries to find tiling problem solution with defined rectangle's shapes.
         Args:
             rectangle_shapes (Tuple[Tuple[int, int]]):
         Returns:
             bool: True if there is a task solution, False otherwise."""
-        rectangle_sizes = [rectangle_width * rectangle_height
-                           for (rectangle_width, rectangle_height) in rectangle_shapes]
         table_width, table_height = self.table_size
 
         # Create rectangles with defined shape
-        polyominoes = [[] for s in rectangle_shapes]
-        for idx, size in enumerate(rectangle_sizes):
+        rectangle_areas = [rectangle_width * rectangle_height
+                           for (rectangle_width, rectangle_height) in rectangle_shapes]
+        rectangle_polyominoes = [[] for _ in rectangle_shapes]
+        for idx, size in enumerate(rectangle_areas):
             for i in range(size):
-                polyominoes[idx].append([self.model.NewIntVar(0, table_width - 1, f'p{i}c{i}x'),
-                                         self.model.NewIntVar(0, table_height - 1, f'p{i}c{i}y')])
+                rectangle_polyominoes[idx].append([self.model.NewIntVar(0, table_width - 1, f'r{i}c{i}x'),
+                                                   self.model.NewIntVar(0, table_height - 1, f'r{i}c{i}y')])
 
-        for (rectangle_width, rectangle_height), polyomino in zip(rectangle_shapes, polyominoes):
+        for (rectangle_width, rectangle_height), polyomino in zip(rectangle_shapes, rectangle_polyominoes):
             self.__add_rectangle(polyomino, rectangle_width, rectangle_height)
+
+        # Create p-polyomonoes with defined shape and direction
+        p_polyomino_areas = [(width * height) - (height - 1) * (width - 2)
+                             for (height, width) in list(p_polyomino_shapes)]
+        p_polyominoes = [[] for _ in p_polyomino_shapes]
+        for idx, size in enumerate(p_polyomino_areas):
+            for i in range(size):
+                p_polyominoes[idx].append([self.model.NewIntVar(0, table_width - 1, f'p{i}c{i}x'),
+                                           self.model.NewIntVar(0, table_height - 1, f'p{i}c{i}y')])
+
+        for (p_height, p_width), polyomino in zip(p_polyomino_shapes, p_polyominoes):
+            self.__add_p_polyomino(polyomino, p_height, p_width)
 
         # No blocks can overlap
         active_cells = set(np.arange(table_width * table_height))  # Cells where polyominoes can be fitted
         ranges = [(next(g), list(g)[-1]) for g in
                   mit.consecutive_groups(active_cells)]  # All intervals in the stack of active cells
         block_addresses = []
-        for index, polyomino in enumerate(polyominoes):
+        all_polyominoes = p_polyominoes + rectangle_polyominoes
+
+        for index, polyomino in enumerate(all_polyominoes):
             for cell in polyomino:
                 block_address = self.model.NewIntVarFromDomain(
                     cp_model.Domain.FromIntervals(ranges), f'{index}')
@@ -80,9 +101,9 @@ class Solution:
 
         # Solve tiling problem
         solver = cp_model.CpSolver()
-        solution_printer = SolutionPrinter(polyominoes,
+        solution_printer = SolutionPrinter(all_polyominoes,
                                            table_width, table_height,
-                                           rectangle_sizes, [])
+                                           rectangle_areas, p_polyomino_areas)
         status = solver.Solve(self.model, solution_printer)
         if status in [cp_model.OPTIMAL, cp_model.FEASIBLE]:
             return True
@@ -98,4 +119,19 @@ class Solution:
             self.model.Add(cell[1] < polyomino[0][1] + rectangle_width)
             self.model.Add(cell[0] < polyomino[0][0] + rectangle_height)
             self.model.Add(cell[1] >= polyomino[0][1])
+            self.model.Add(cell[0] >= polyomino[0][0])
+
+    def __add_p_polyomino(self, polyomino: List,
+                          p_polyomino_height: int, p_polyomino_width: int, direction: str = None):
+        for cell in polyomino[1:p_polyomino_height]:
+            self.model.Add(cell[0] == polyomino[0][0])
+            self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_height)
+            self.model.Add(cell[1] >= polyomino[0][1])
+        for cell in polyomino[p_polyomino_height:2 * p_polyomino_height]:
+            self.model.Add(cell[0] == polyomino[0][0] + p_polyomino_width - 1)
+            self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_height)
+            self.model.Add(cell[1] >= polyomino[0][1])
+        for cell in polyomino[2 * p_polyomino_height:]:
+            self.model.Add(cell[1] == polyomino[0][1])
+            self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_width)
             self.model.Add(cell[0] >= polyomino[0][0])
