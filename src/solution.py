@@ -1,6 +1,7 @@
 """Script contains tiling task solution."""
 from typing import Tuple, List, Union
 import itertools
+import random
 import warnings
 import numpy as np
 import more_itertools as mit
@@ -29,13 +30,23 @@ class Solution:
         if not self.__check_area_compatibility():
             print('There is not enough area')
             return False
+
         rect_shape_combinations = [list(itertools.permutations(rectangle_shape))
                                    for rectangle_shape in self.rectangle_shapes]
         rect_shape_combinations = list(itertools.product(*rect_shape_combinations))
 
+        directions = ['top', 'left', 'right', 'bottom']
+        directions = list(itertools.product(directions, repeat=len(self.p_shapes)))
+        p_combinations = [tuple(zip(self.p_shapes, direction)) for direction in directions]
+        attempt_number = 0
         for rect_shape in rect_shape_combinations:
-            if self.__find_solution(rect_shape, self.p_shapes):
-                return True
+            for p_comb in p_combinations:
+                if self.__find_solution(rect_shape, p_comb):
+                    return True
+                attempt_number += 1
+                print(f'Attempt #{attempt_number}/{len(rect_shape_combinations) * len(p_combinations)}')
+                print(rect_shape, p_comb)
+                print(f'-'*30)
         return False
 
     def __check_area_compatibility(self):
@@ -51,7 +62,7 @@ class Solution:
         return available_area >= rectangles_area + p_polyominoes_area
 
     def __find_solution(self, rectangle_shapes: Tuple[Tuple[int, int]],
-                        p_polyomino_shapes: Tuple[Tuple[int, int]]) -> bool:
+                        p_polyomino_shapes: Tuple[Tuple[Tuple[int, int], str]]) -> bool:
         """Tries to find tiling problem solution with defined rectangle's shapes.
         Args:
             rectangle_shapes (Tuple[Tuple[int, int]]):
@@ -73,15 +84,15 @@ class Solution:
 
         # Create p-polyomonoes with defined shape and direction
         p_polyomino_areas = [(width * height) - (height - 1) * (width - 2)
-                             for (height, width) in list(p_polyomino_shapes)]
+                             for (height, width), _ in list(p_polyomino_shapes)]
         p_polyominoes = [[] for _ in p_polyomino_shapes]
         for idx, size in enumerate(p_polyomino_areas):
             for i in range(size):
                 p_polyominoes[idx].append([self.model.NewIntVar(0, table_width - 1, f'p{i}c{i}x'),
                                            self.model.NewIntVar(0, table_height - 1, f'p{i}c{i}y')])
 
-        for (p_height, p_width), polyomino in zip(p_polyomino_shapes, p_polyominoes):
-            self.__add_p_polyomino(polyomino, p_height, p_width)
+        for ((p_height, p_width), direction), polyomino in zip(p_polyomino_shapes, p_polyominoes):
+            self.__add_p_polyomino(polyomino, p_height, p_width, direction)
 
         # No blocks can overlap
         active_cells = set(np.arange(table_width * table_height))  # Cells where polyominoes can be fitted
@@ -123,15 +134,55 @@ class Solution:
 
     def __add_p_polyomino(self, polyomino: List,
                           p_polyomino_height: int, p_polyomino_width: int, direction: str = None):
-        for cell in polyomino[1:p_polyomino_height]:
-            self.model.Add(cell[0] == polyomino[0][0])
-            self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_height)
-            self.model.Add(cell[1] >= polyomino[0][1])
-        for cell in polyomino[p_polyomino_height:2 * p_polyomino_height]:
-            self.model.Add(cell[0] == polyomino[0][0] + p_polyomino_width - 1)
-            self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_height)
-            self.model.Add(cell[1] >= polyomino[0][1])
-        for cell in polyomino[2 * p_polyomino_height:]:
-            self.model.Add(cell[1] == polyomino[0][1])
-            self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_width)
-            self.model.Add(cell[0] >= polyomino[0][0])
+        if direction == 'bottom':
+            for cell in polyomino[1:p_polyomino_height]:
+                self.model.Add(cell[0] == polyomino[0][0])
+                self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_height)
+                self.model.Add(cell[1] >= polyomino[0][1])
+            for cell in polyomino[p_polyomino_height:2 * p_polyomino_height]:
+                self.model.Add(cell[0] == polyomino[0][0] + p_polyomino_width - 1)
+                self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_height)
+                self.model.Add(cell[1] >= polyomino[0][1])
+            for cell in polyomino[2 * p_polyomino_height:]:
+                self.model.Add(cell[1] == polyomino[0][1])
+                self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_width)
+                self.model.Add(cell[0] >= polyomino[0][0])
+        elif direction == 'top':
+            for cell in polyomino[1:p_polyomino_height]:
+                self.model.Add(cell[0] == polyomino[0][0])
+                self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_height)
+                self.model.Add(cell[1] >= polyomino[0][1])
+            for cell in polyomino[p_polyomino_height:2 * p_polyomino_height]:
+                self.model.Add(cell[0] == polyomino[0][0] + p_polyomino_width - 1)
+                self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_height)
+                self.model.Add(cell[1] >= polyomino[0][1])
+            for cell in polyomino[2 * p_polyomino_height:]:
+                self.model.Add(cell[1] == polyomino[0][1] + p_polyomino_height - 1)
+                self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_width)
+                self.model.Add(cell[0] >= polyomino[0][0])
+        elif direction == 'left':
+            for cell in polyomino[1:p_polyomino_width]:
+                self.model.Add(cell[0] == polyomino[0][0] + p_polyomino_height - 1)
+                self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_width)
+                self.model.Add(cell[1] >= polyomino[0][1])
+            for cell in polyomino[p_polyomino_width:p_polyomino_width + p_polyomino_height]:
+                self.model.Add(cell[1] == polyomino[0][1] + p_polyomino_width - 1)
+                self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_height)
+                self.model.Add(cell[0] >= polyomino[0][0])
+            for cell in polyomino[p_polyomino_width + p_polyomino_height:]:
+                self.model.Add(cell[1] == polyomino[0][1])
+                self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_height)
+                self.model.Add(cell[0] >= polyomino[0][0])
+        else:
+            for cell in polyomino[1:p_polyomino_height]:
+                self.model.Add(cell[1] == polyomino[0][1])
+                self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_height)
+                self.model.Add(cell[0] >= polyomino[0][0])
+            for cell in polyomino[p_polyomino_height:2 * p_polyomino_height]:
+                self.model.Add(cell[1] == polyomino[0][1] + p_polyomino_width - 1)
+                self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_height)
+                self.model.Add(cell[0] >= polyomino[0][0])
+            for cell in polyomino[2 * p_polyomino_height:]:
+                self.model.Add(cell[0] == polyomino[0][0])
+                self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_width)
+                self.model.Add(cell[1] >= polyomino[0][1])
