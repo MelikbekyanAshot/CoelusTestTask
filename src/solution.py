@@ -33,20 +33,22 @@ class Solution:
 
         rect_shape_combinations = [list(itertools.permutations(rectangle_shape))
                                    for rectangle_shape in self.rectangle_shapes]
-        rect_shape_combinations = list(itertools.product(*rect_shape_combinations))
+        rect_shape_combinations = set(itertools.product(*rect_shape_combinations))
 
         directions = ['top', 'left', 'right', 'bottom']
         directions = list(itertools.product(directions, repeat=len(self.p_shapes)))
+        random.shuffle(directions)
         p_combinations = [tuple(zip(self.p_shapes, direction)) for direction in directions]
         attempt_number = 0
+        total_combinations_number = len(rect_shape_combinations) * len(p_combinations)
         for rect_shape in rect_shape_combinations:
             for p_comb in p_combinations:
+                attempt_number += 1
+                print(f'Attempt #{attempt_number}/{total_combinations_number}')
+                print(rect_shape, p_comb)
+                print('-' * 30)
                 if self.__find_solution(rect_shape, p_comb):
                     return True
-                attempt_number += 1
-                print(f'Attempt #{attempt_number}/{len(rect_shape_combinations) * len(p_combinations)}')
-                print(rect_shape, p_comb)
-                print(f'-'*30)
         return False
 
     def __check_area_compatibility(self):
@@ -76,8 +78,9 @@ class Solution:
         rectangle_polyominoes = [[] for _ in rectangle_shapes]
         for idx, size in enumerate(rectangle_areas):
             for i in range(size):
-                rectangle_polyominoes[idx].append([self.model.NewIntVar(0, table_width - 1, f'r{i}c{i}x'),
-                                                   self.model.NewIntVar(0, table_height - 1, f'r{i}c{i}y')])
+                rectangle_polyominoes[idx] \
+                    .append([self.model.NewIntVar(0, table_width - 1, f'r{i}c{i}x'),
+                             self.model.NewIntVar(0, table_height - 1, f'r{i}c{i}y')])
 
         for (rectangle_width, rectangle_height), polyomino in zip(rectangle_shapes, rectangle_polyominoes):
             self.__add_rectangle(polyomino, rectangle_width, rectangle_height)
@@ -88,8 +91,9 @@ class Solution:
         p_polyominoes = [[] for _ in p_polyomino_shapes]
         for idx, size in enumerate(p_polyomino_areas):
             for i in range(size):
-                p_polyominoes[idx].append([self.model.NewIntVar(0, table_width - 1, f'p{i}c{i}x'),
-                                           self.model.NewIntVar(0, table_height - 1, f'p{i}c{i}y')])
+                p_polyominoes[idx] \
+                    .append([self.model.NewIntVar(0, table_width - 1, f'p{i}c{i}x'),
+                             self.model.NewIntVar(0, table_height - 1, f'p{i}c{i}y')])
 
         for ((p_height, p_width), direction), polyomino in zip(p_polyomino_shapes, p_polyominoes):
             self.__add_p_polyomino(polyomino, p_height, p_width, direction)
@@ -161,18 +165,18 @@ class Solution:
                 self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_width)
                 self.model.Add(cell[0] >= polyomino[0][0])
         elif direction == 'left':
-            for cell in polyomino[1:p_polyomino_width]:
-                self.model.Add(cell[0] == polyomino[0][0] + p_polyomino_height - 1)
-                self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_width)
-                self.model.Add(cell[1] >= polyomino[0][1])
-            for cell in polyomino[p_polyomino_width:p_polyomino_width + p_polyomino_height]:
-                self.model.Add(cell[1] == polyomino[0][1] + p_polyomino_width - 1)
-                self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_height)
-                self.model.Add(cell[0] >= polyomino[0][0])
-            for cell in polyomino[p_polyomino_width + p_polyomino_height:]:
+            for cell in polyomino[1:p_polyomino_height]:
                 self.model.Add(cell[1] == polyomino[0][1])
                 self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_height)
                 self.model.Add(cell[0] >= polyomino[0][0])
+            for cell in polyomino[p_polyomino_height:2 * p_polyomino_height]:
+                self.model.Add(cell[1] == polyomino[0][1] + p_polyomino_width - 1)
+                self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_height)
+                self.model.Add(cell[0] >= polyomino[0][0])
+            for cell in polyomino[2 * p_polyomino_height:]:
+                self.model.Add(cell[0] == polyomino[0][0] + p_polyomino_height - 1)
+                self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_width)
+                self.model.Add(cell[1] >= polyomino[0][1])
         else:
             for cell in polyomino[1:p_polyomino_height]:
                 self.model.Add(cell[1] == polyomino[0][1])
