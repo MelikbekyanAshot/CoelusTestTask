@@ -29,33 +29,38 @@
 ### Положительный пример
 Введем размер таблицы 4х6, 2 квадрата 2х2 и 1 прямоугольник 1х4 и получим решение. 
 ```
-Enter table's width and height: 
->> 4 6
-Enter total rectangles type amount: 
->> 2
-Enter width, height and amount of each rectangle: 
->> 2 2 2
-Enter width, height and amount of each rectangle: 
->> 1 4 1
+>> Enter table's width and height: 
+4 6
+>> Enter total rectangles type amount: 
+1
+>> Enter width, height and amount of rectangles:
+2 2 2
+>> Enter total p-polyominoes type amount:
+2
+>> Enter width, height and amount of p-polyominoes:
+3 4 1
+>> Enter width, height and amount of p-polyominoes:
+2 3 1
 You entered:
 table size: (4, 6)
-rectangles: [(2, 2), (2, 2), (1, 4)]
+rectangles: [(2, 2), (2, 2)]
+p-polyominoes: [(3, 4), (2, 3)]
 Solution is found!
 ```
-![Пример решения](images/example_solution.png)
+![Пример решения](images/example_.solution.png)
 
 ### Отрицательный пример
 Приведем пример отсутствия решения.
 В таблицу 4х6 невозможно упаковать 2 квадрата 2х2 и прямоугольник 1х7.
 ```
-Enter table's width and height: 
->> 4 6
-Enter total rectangles type amount: 
->> 2
-Enter width, height and amount of each rectangle: 
->> 2 2 2
-Enter width, height and amount of each rectangle: 
->> 1 7 1
+>> Enter table's width and height: 
+4 6
+>> Enter total rectangles type amount: 
+2
+>> Enter width, height and amount of each rectangle: 
+2 2 2
+>> Enter width, height and amount of each rectangle: 
+1 7 1
 You entered:
 table size: (4, 6)
 rectangles: [(2, 2), (2, 2), (1, 7)]
