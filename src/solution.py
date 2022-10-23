@@ -1,5 +1,5 @@
 """Script contains tiling task solution."""
-from typing import Tuple, List, Union
+from typing import Tuple, List
 import itertools
 import random
 import warnings
@@ -25,8 +25,13 @@ class Solution:
         self.rectangle_shapes = rectangle_shapes
         self.p_shapes = p_shapes
 
-    def solve(self, plot_solution: bool):
-        """Iterates through all possible rectangle rotations to find solution."""
+    def solve(self, plot_solution: bool) -> bool:
+        """Iterates through all possible rectangle rotations to find solution.
+        Args:
+            plot_solution (bool): defines if solution should be plotted.
+
+        Returns:
+            bool: True if there is any solution, False otherwise."""
         if not self.__check_area_compatibility():
             return False
 
@@ -63,6 +68,7 @@ class Solution:
         Args:
             rectangle_shapes (Tuple[Tuple[int, int]]):
             p_polyomino_shapes (Tuple[Tuple[Tuple[int, int], str]]):
+            plot_solution (bool): defines if solution should be plotted.
         Returns:
             bool: True if there is a task solution, False otherwise."""
         table_width, table_height = self.table_size
@@ -125,9 +131,9 @@ class Solution:
 
     def __add_rectangle(self, polyomino: List,
                         rectangle_height: int, rectangle_width: int) -> None:
-        """Adds constraint with rectangle shape to model.
+        """Adds constraints of rectangle shape to model.
         Args:
-            polyomino (List[cp_model.IntVar]): list of cp_model.IntVar's objects.
+            polyomino (List[cp_model.IntVar]): list of cp_model.IntVar objects.
             rectangle_height (int): height of rectangle.
             rectangle_width (int): width of rectangle."""
         for cell in polyomino:
@@ -136,58 +142,66 @@ class Solution:
             self.model.Add(cell[1] >= polyomino[0][1])
             self.model.Add(cell[0] >= polyomino[0][0])
 
-    def __add_p_polyomino(self, polyomino: List,
+    def __add_p_polyomino(self, polyomino: List[cp_model.IntVar],
                           p_polyomino_height: int, p_polyomino_width: int,
                           direction: str) -> None:
-        if direction == 'bottom':
-            for cell in polyomino[1:p_polyomino_height]:
-                self.model.Add(cell[0] == polyomino[0][0])
-                self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_height)
-                self.model.Add(cell[1] >= polyomino[0][1])
-            for cell in polyomino[p_polyomino_height:2 * p_polyomino_height]:
-                self.model.Add(cell[0] == polyomino[0][0] + p_polyomino_width - 1)
-                self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_height)
-                self.model.Add(cell[1] >= polyomino[0][1])
-            for cell in polyomino[2 * p_polyomino_height:]:
-                self.model.Add(cell[1] == polyomino[0][1])
-                self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_width)
-                self.model.Add(cell[0] >= polyomino[0][0])
-        elif direction == 'top':
-            for cell in polyomino[1:p_polyomino_height]:
-                self.model.Add(cell[0] == polyomino[0][0])
-                self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_height)
-                self.model.Add(cell[1] >= polyomino[0][1])
-            for cell in polyomino[p_polyomino_height:2 * p_polyomino_height]:
-                self.model.Add(cell[0] == polyomino[0][0] + p_polyomino_width - 1)
-                self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_height)
-                self.model.Add(cell[1] >= polyomino[0][1])
-            for cell in polyomino[2 * p_polyomino_height:]:
-                self.model.Add(cell[1] == polyomino[0][1] + p_polyomino_height - 1)
-                self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_width)
-                self.model.Add(cell[0] >= polyomino[0][0])
-        elif direction == 'left':
-            for cell in polyomino[1:p_polyomino_height]:
-                self.model.Add(cell[1] == polyomino[0][1])
-                self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_height)
-                self.model.Add(cell[0] >= polyomino[0][0])
-            for cell in polyomino[p_polyomino_height:2 * p_polyomino_height]:
-                self.model.Add(cell[1] == polyomino[0][1] + p_polyomino_width - 1)
-                self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_height)
-                self.model.Add(cell[0] >= polyomino[0][0])
-            for cell in polyomino[2 * p_polyomino_height:]:
-                self.model.Add(cell[0] == polyomino[0][0] + p_polyomino_height - 1)
-                self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_width)
-                self.model.Add(cell[1] >= polyomino[0][1])
-        else:
-            for cell in polyomino[1:p_polyomino_height]:
-                self.model.Add(cell[1] == polyomino[0][1])
-                self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_height)
-                self.model.Add(cell[0] >= polyomino[0][0])
-            for cell in polyomino[p_polyomino_height:2 * p_polyomino_height]:
-                self.model.Add(cell[1] == polyomino[0][1] + p_polyomino_width - 1)
-                self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_height)
-                self.model.Add(cell[0] >= polyomino[0][0])
-            for cell in polyomino[2 * p_polyomino_height:]:
-                self.model.Add(cell[0] == polyomino[0][0])
-                self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_width)
-                self.model.Add(cell[1] >= polyomino[0][1])
+        """Adds constraints of p-polyomino shape to model.
+        Args:
+            polyomino (List[cp_model.IntVar]): list of cp_model.IntVar objects.
+            p_polyomino_height (int): height of p-polyomino.
+            p_polyomino_width (int): width of p-polyomino.
+            direction (str): direction of p-polyomino's open area."""
+        if direction in ['bottom', 'top']:
+            self.__add_vertical_oriented_p_polyomino(polyomino,
+                                                     p_polyomino_height, p_polyomino_width,
+                                                     direction)
+        elif direction in ['left', 'right']:
+            self.__add_horizontal_oriented_p_polyomino(polyomino,
+                                                       p_polyomino_height, p_polyomino_width,
+                                                       direction)
+
+    def __add_vertical_oriented_p_polyomino(self, polyomino: List,
+                                            p_polyomino_height: int, p_polyomino_width: int,
+                                            direction: str) -> None:
+        """Adds constraints of vertical oriented p-polyomino shape to model.
+        Args:
+            polyomino (List[cp_model.IntVar]): list of cp_model.IntVar objects.
+            p_polyomino_height (int): height of p-polyomino.
+            p_polyomino_width (int): width of p-polyomino.
+            direction (str): direction of p-polyomino's open area."""
+        bias = 0 if direction == 'bottom' else p_polyomino_height - 1
+        for cell in polyomino[1:p_polyomino_height]:
+            self.model.Add(cell[0] == polyomino[0][0])
+            self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_height)
+            self.model.Add(cell[1] >= polyomino[0][1])
+        for cell in polyomino[p_polyomino_height:2 * p_polyomino_height]:
+            self.model.Add(cell[0] == polyomino[0][0] + p_polyomino_width - 1)
+            self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_height)
+            self.model.Add(cell[1] >= polyomino[0][1])
+        for cell in polyomino[2 * p_polyomino_height:]:
+            self.model.Add(cell[1] == polyomino[0][1] + bias)
+            self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_width)
+            self.model.Add(cell[0] >= polyomino[0][0])
+
+    def __add_horizontal_oriented_p_polyomino(self, polyomino: List,
+                                              p_polyomino_height: int, p_polyomino_width: int,
+                                              direction: str) -> None:
+        """Adds constraints of horizontal oriented p-polyomino shape to model.
+        Args:
+            polyomino (List[cp_model.IntVar]): list of cp_model.IntVar objects.
+            p_polyomino_height (int): height of p-polyomino.
+            p_polyomino_width (int): width of p-polyomino.
+            direction (str): direction of p-polyomino's open area."""
+        bias = 0 if direction == 'right' else p_polyomino_height - 1
+        for cell in polyomino[1:p_polyomino_height]:
+            self.model.Add(cell[1] == polyomino[0][1])
+            self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_height)
+            self.model.Add(cell[0] >= polyomino[0][0])
+        for cell in polyomino[p_polyomino_height:2 * p_polyomino_height]:
+            self.model.Add(cell[1] == polyomino[0][1] + p_polyomino_width - 1)
+            self.model.Add(cell[0] < polyomino[0][0] + p_polyomino_height)
+            self.model.Add(cell[0] >= polyomino[0][0])
+        for cell in polyomino[2 * p_polyomino_height:]:
+            self.model.Add(cell[0] == polyomino[0][0] + bias)
+            self.model.Add(cell[1] < polyomino[0][1] + p_polyomino_width)
+            self.model.Add(cell[1] >= polyomino[0][1])
