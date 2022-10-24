@@ -25,7 +25,7 @@ class Solution:
         self.rectangle_shapes = rectangle_shapes
         self.p_shapes = p_shapes
 
-    def solve(self, plot_solution: bool) -> bool:
+    def solve(self, plot_solution: bool = True) -> bool:
         """Iterates through all possible rectangle rotations to find solution.
         Args:
             plot_solution (bool): defines if solution should be plotted.
